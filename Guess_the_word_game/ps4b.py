@@ -124,7 +124,7 @@ def playGame(wordList):
 
     wordList: list (string)
     """
-    # TO DO... <-- Remove this comment when you code this function
+
     
     """
     Allow the user to play an arbitrary number of hands.

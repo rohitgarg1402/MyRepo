@@ -12,8 +12,7 @@ SCRABBLE_LETTER_VALUES = {
 }
 
 # -----------------------------------
-# Helper code
-# (you don't need to understand this helper code)
+
 
 WORDLIST_FILENAME = "words.txt"
 
@@ -85,7 +84,6 @@ def getWordScore(word, n):
 
 
 #
-# Problem #2: Make sure you understand how this function works and what it does!
 #
 def displayHand(hand):
     """
@@ -104,8 +102,7 @@ def displayHand(hand):
              print(letter,end = ' ')       # print all on the same line
     print()                             # print an empty line
 
-#
-# Problem #2: Make sure you understand how this function works and what it does!
+
 #
 def dealHand(n):
     """
@@ -199,7 +196,7 @@ def calculateHandlen(hand):
     hand: dictionary (string-> int)
     returns: integer
     """
-    # TO DO... <-- Remove this comment when you code this function
+   
     length = 0
     for key in hand:
         length = length + hand[key]
@@ -228,8 +225,7 @@ def playHand(hand, wordList, n):
       n: integer (HAND_SIZE; i.e., hand size required for additional points)
       
     """
-    # BEGIN PSEUDOCODE <-- Remove this comment when you code this function; do your coding within the pseudocode (leaving those comments in-place!)
-    # Keep track of the total score
+    
     
     # As long as there are still letters left in the hand:
     
@@ -301,7 +297,7 @@ def playGame(wordList):
  
     2) When done playing the hand, repeat from step 1    
     """
-    # TO DO ... <-- Remove this comment when you code this function
+    
     HAND_SIZE = 8
     flag = False
     hand = dealHand(HAND_SIZE)
