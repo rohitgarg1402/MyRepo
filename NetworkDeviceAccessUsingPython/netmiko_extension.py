@@ -4,120 +4,103 @@ import json
 
 from netmiko import ConnectHandler
 
-class NetDevice(object):
-
-    def connect(type, ipaddress, username, password):
-        A ={'device_type':type,'ip':ipaddress,'username':username,'password':password}
-        net_connect=ConnectHandler(**A)
-
-        if type == "arista_eos":
-            return eos(net_connect)
-        elif type == "juniper":
-            return junos(net_connect)
+class NetDevice():
+    def __init__(self):
+        self.logger = ulnet_logging.service_logger()
+    
+    def connect(self, device_type, ipaddress, username, password):
+        self.logger.info("Connecting")
+        a = {'device_type': device_type, 'ip': ipaddress, 'username': username, 'password': password}
+        try:
+            net_connect = ConnectHandler(**a)
+        
+        except netmiko.NetMikoTimeoutException as error:
+            logger.error("Timed out trying to connect to {0}".format(a['ip']))
+            return "Not Reachable"
+        except netmiko.NetMikoAuthenticationException as error:
+            logger.error("Connected, but failed to authenticate to {0}".format(a['ip']))
+            return "Not Reachable"
+        except Exception as e:
+            logger.exception(e)
+            return "Not Reachable"
+        
+        if device_type == "arista_eos":
+            return Eos(net_connect)
+        elif device_type == "juniper":
+            return Junos(net_connect)
+        elif device_type == "cisco_ios":
+            return CiscoIos(net_connect)
         else:
-            assert 0, "Invalid Device Type: " + type
+            assert 0, "Unsupported device type: " + device_type
 
-    connect = staticmethod(connect)
-
-class eos(NetDevice):
-
+class Eos(NetDevice):
     def __init__(self, conn):
         self.net_connect = conn
-
-    def parse_command(self, buff):
-        x = re.sub('\{None\}', '', buff)
-        j = json.loads(x)
-        return j
-
+        super().__init__()
+    
+    
     def get_arp(self):
-        logger.debug()
-        a =  self.net_connect.find_prompt()
-        name = (a[7:a.find('>')])
-        #print (name)
+        
+        cmd = "show arp | json"
+        self.logger.debug("Sending command {}".format(cmd))
+        
+        result = self.net_connect.send_command(cmd)
+        return result
+    
+    def bgp_neighbor_state(self):
+        cmd = 'show ip bgp sum vrf all | json'
+        self.logger.debug("Sending command {}".format(cmd))
+        
+        op = self.net_connect.send_command(cmd)
+        result = json.loads(op)
+        return result
+    
+    def interface_status(self,intf):
+        cmd = 'show interfaces {} | json'
+        self.logger.debug("Sending command {}".format(cmd))
+        
+        op = self.net_connect.send_command(cmd.format(intf))
+        result = json.loads(op)
+        return result
 
-        intf_desc = self.net_connect.send_command("show arp | json")
-        json_buf = self.parse_command(intf_desc)
-        return json_buf
-
-    def bgp_neighbor(self):
-        print("Arista Device")
-        a =  self.net_connect.find_prompt()
-        name = (a[7:a.find('>')])
-        print (name)
-
-        intf_desc = self.net_connect.send_command("show ip bgp summary | json")
-        json_buf = self.parse_command(intf_desc)
-        return json_buf
-
-class junos(NetDevice):
+class Junos(NetDevice):
     def __init__(self, conn):
         self.net_connect = conn
-
-    def parse_command(self, buff):
-        x = re.sub('\{master\}', '', buff)
-        j = json.loads(x)
-        return j
-
+        super().__init__()
+    
+    
     def get_arp(self):
-        print("Juniper Device")
-        a =  self.net_connect.find_prompt()
-        name = (a[7:a.find('>')])
-        print (name)
+        
+        cmd = "show arp | display json"
+        self.logger.debug("Sending command {}".format(cmd))
+        result = self.net_connect.send_command(cmd)
+        return result
 
-        intf_desc = self.net_connect.send_command("show arp | display json")
-        json_buf = self.parse_command(intf_desc)
-        return json_buf
 
-    def check_sys_uptime(self):
-        print("Juniper Device")
-        a =  self.net_connect.find_prompt()
-        name = (a[7:a.find('>')])
-        print (name)
+class CiscoIos(NetDevice):
+    def __init__(self, conn):
+        self.net_connect = conn
+        super().__init__()
+    
+    
+    def get_arp(self):
+        cmd = "show arp | display json"
+        self.logger.debug("Sending command {}".format(cmd))
+        result = self.net_connect.send_command(cmd)
+        return result
+    
+    def ping_func(self,ip):
+        cmd = "ping {}"
+        self.logger.debug("Sending command {}".format(cmd))
+        
+        op = self.net_connect.send_command(cmd.format(ip))
+        regex1 = re.compile("Success\srate\sis\s(\w+)\spercent\s\W(\w)/(\w)")
+        match1 = regex1.search(op)
+        percent = match1.group(1)
+        trans_packet = match1.group(3)
+        recv_packet = match1.group(2)
+        dict1 = {'percentage':percent,'transmitted':trans_packet,'received':recv_packet}
+        return dict1
 
-        intf_desc = self.net_connect.send_command("show system uptime | display json")
-        json_buf = self.parse_command(intf_desc)
-        return json_buf
-
-    def check_chassis_fpc(self):
-        print("Juniper Device")
-        a =  self.net_connect.find_prompt()
-        name = (a[7:a.find('>')])
-        print (name)
-
-        intf_desc = self.net_connect.send_command("show chassis fpc | display json")
-        json_buf = self.parse_command(intf_desc)
-        return json_buf
-
-    def check_sys_alarms(self):
-        print("Juniper Device")
-        a =  self.net_connect.find_prompt()
-        name = (a[7:a.find('>')])
-        print (name)
-
-        intf_desc = self.net_connect.send_command("show system alarms | display json")
-        json_buf = self.parse_command(intf_desc)
-        return json_buf
-
-    #Function for checking the shutdown event in the device
-    def check_log_msg(self):
-        print("Juniper Device")
-        a =  self.net_connect.find_prompt()
-        name = (a[7:a.find('>')])
-        print (name)
-
-        intf_desc = self.net_connect.send_command("show log messages | match system_abnormal_shudown")
-        json_buf = self.parse_command(intf_desc)
-        return json_buf
-
-    #Function to check all the bgp neighbors for a device
-    def bgp_neighbor(self):
-        print("Juniper Device")
-        a =  self.net_connect.find_prompt()
-        name = (a[7:a.find('>')])
-        print (name)
-
-        intf_desc = self.net_connect.send_command("show bgp neighbor | display json")
-        json_buf = self.parse_command(intf_desc)
-        return json_buf
 
 
